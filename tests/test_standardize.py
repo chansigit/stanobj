@@ -28,53 +28,59 @@ from scripts.standardize import (
 class TestStandardizeObs:
     def test_adds_cell_id(self):
         obs = pd.DataFrame({"nGene": [100, 200]}, index=["AACG", "TTCG"])
-        result = standardize_obs(obs, "ds1")
+        result, mapping = standardize_obs(obs, "ds1")
         assert "cell_id" in result.columns
         assert list(result["cell_id"]) == ["AACG", "TTCG"]
+        assert mapping == {}
 
     def test_maps_celltype_to_cell_type(self):
         obs = pd.DataFrame({"celltype": ["T", "B"]}, index=["c1", "c2"])
-        result = standardize_obs(obs, "ds1")
+        result, mapping = standardize_obs(obs, "ds1")
         assert "cell_type" in result.columns
         assert list(result["cell_type"]) == ["T", "B"]
         # original column preserved
         assert "celltype" in result.columns
+        assert mapping == {"celltype": "cell_type"}
 
     def test_maps_orig_ident_to_sample(self):
         obs = pd.DataFrame({"orig.ident": ["s1", "s2"]}, index=["c1", "c2"])
-        result = standardize_obs(obs, "ds1")
+        result, mapping = standardize_obs(obs, "ds1")
         assert "sample" in result.columns
         assert list(result["sample"]) == ["s1", "s2"]
+        assert mapping == {"orig.ident": "sample"}
 
     def test_maps_patient_to_donor(self):
         obs = pd.DataFrame({"patient": ["P1", "P2"]}, index=["c1", "c2"])
-        result = standardize_obs(obs, "ds1")
+        result, mapping = standardize_obs(obs, "ds1")
         assert "donor" in result.columns
         assert list(result["donor"]) == ["P1", "P2"]
+        assert mapping == {"patient": "donor"}
 
     def test_maps_disease_to_condition(self):
         obs = pd.DataFrame({"disease": ["AML", "healthy"]}, index=["c1", "c2"])
-        result = standardize_obs(obs, "ds1")
+        result, mapping = standardize_obs(obs, "ds1")
         assert "condition" in result.columns
         assert list(result["condition"]) == ["AML", "healthy"]
+        assert mapping == {"disease": "condition"}
 
     def test_no_overwrite_existing_cell_type(self):
         obs = pd.DataFrame(
             {"cell_type": ["Treg", "Bcell"], "celltype": ["T", "B"]},
             index=["c1", "c2"],
         )
-        result = standardize_obs(obs, "ds1")
+        result, mapping = standardize_obs(obs, "ds1")
         # canonical cell_type already present — should NOT be overwritten
         assert list(result["cell_type"]) == ["Treg", "Bcell"]
+        assert "celltype" not in mapping
 
     def test_uniquify_obs_names(self):
         obs = pd.DataFrame({"x": [1, 2, 3]}, index=["dup", "dup", "unique"])
-        result = standardize_obs(obs, "ds1", make_unique=True)
+        result, mapping = standardize_obs(obs, "ds1", make_unique=True)
         assert result.index.is_unique
 
     def test_adds_dataset_column(self):
         obs = pd.DataFrame({"x": [1]}, index=["c1"])
-        result = standardize_obs(obs, "my_dataset")
+        result, mapping = standardize_obs(obs, "my_dataset")
         assert "dataset" in result.columns
         assert result["dataset"].iloc[0] == "my_dataset"
 

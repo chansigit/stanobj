@@ -75,7 +75,7 @@ def standardize_obs(
     obs: pd.DataFrame,
     dataset_name: str,
     make_unique: bool = False,
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, Dict[str, str]]:
     """Standardize an obs DataFrame.
 
     - Copies *obs* (never mutates the original).
@@ -84,6 +84,13 @@ def standardize_obs(
     - Maps column-name variants to canonical names (without overwriting
       existing canonical columns).
     - Optionally makes the index unique.
+
+    Returns
+    -------
+    result : pd.DataFrame
+        The standardized obs DataFrame.
+    mapping : dict
+        Mapping of ``{source_col: canon_col}`` for columns that were mapped.
     """
     result = obs.copy()
 
@@ -92,9 +99,11 @@ def standardize_obs(
     result["dataset"] = dataset_name
 
     # Map variant column names -> canonical names
+    mapping: Dict[str, str] = {}
     for source_col, canon_col in OBS_COLUMN_MAP.items():
         if source_col in result.columns and canon_col not in result.columns:
             result[canon_col] = result[source_col]
+            mapping[source_col] = canon_col
 
     # Uniquify index if requested or if there are duplicates
     if make_unique or not result.index.is_unique:
@@ -108,7 +117,7 @@ def standardize_obs(
             unique_names, _ = make_names_unique(names)
             result.index = pd.Index(unique_names)
 
-    return result
+    return result, mapping
 
 
 def standardize_var(

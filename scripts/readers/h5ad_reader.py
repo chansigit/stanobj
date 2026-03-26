@@ -34,11 +34,25 @@ def read_h5ad(path: str, decisions: Optional[dict] = None) -> ReaderResult:
     # Collect available layer names
     available_layers = list(adata.layers.keys())
 
+    # Check for raw counts in layers
+    raw_counts_found = "counts" in adata.layers
+
+    # Detect feature types
+    if "feature_type" in adata.var.columns:
+        feature_types_present = list(adata.var["feature_type"].unique())
+    else:
+        feature_types_present = []
+
     source_meta = {
         "source_format": "h5ad",
         "reader_used": "h5ad_reader",
         "matrix_orientation_before": "cells_x_genes",
         "transposed": False,
+        "raw_counts_found": raw_counts_found,
+        "feature_types_present": feature_types_present,
+        "matrix_type_hint": None,
+        "decompressed": False,
+        "warnings": [],
         "available_layers": available_layers,
     }
 

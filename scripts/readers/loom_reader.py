@@ -105,6 +105,11 @@ def read_loom(path: str, decisions: Optional[dict] = None) -> ReaderResult:
         "reader_used": "loom_reader",
         "matrix_orientation_before": "genes_x_cells",
         "transposed": True,
+        "raw_counts_found": False,
+        "feature_types_present": ["Gene Expression"],
+        "matrix_type_hint": None,
+        "decompressed": False,
+        "warnings": [],
     }
 
     return ReaderResult(adata=adata, source_meta=source_meta)

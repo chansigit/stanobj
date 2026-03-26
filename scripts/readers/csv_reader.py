@@ -172,10 +172,21 @@ def read_csv(
     adata = ad.AnnData(X=X, obs=obs, var=var)
 
     # 8. Source metadata -----------------------------------------------------
+    if transposed:
+        matrix_orientation_before = "genes_x_cells"
+    elif orientation and orientation != "ambiguous":
+        matrix_orientation_before = orientation
+    else:
+        matrix_orientation_before = "cells_x_genes"
+
     source_meta = {
         "source_format": source_format,
         "reader_used": "csv_reader",
+        "matrix_orientation_before": matrix_orientation_before,
         "transposed": transposed,
+        "raw_counts_found": False,
+        "feature_types_present": [],
+        "matrix_type_hint": None,
         "decompressed": decompressed,
         "warnings": warnings_list,
     }

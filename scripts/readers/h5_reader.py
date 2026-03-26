@@ -94,10 +94,13 @@ def read_10x_h5(path: str, decisions: Optional[dict] = None) -> ReaderResult:
     source_meta = {
         "source_format": "10x_h5",
         "reader_used": "h5_reader:10x",
+        "matrix_orientation_before": "genes_x_cells",
         "transposed": True,
         "raw_counts_found": True,
-        "matrix_type_hint": "counts",
         "feature_types_present": feature_types_present,
+        "matrix_type_hint": "counts",
+        "decompressed": False,
+        "warnings": [],
     }
 
     return ReaderResult(adata=adata, source_meta=source_meta)

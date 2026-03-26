@@ -298,9 +298,11 @@ def run(args: argparse.Namespace) -> int:
         # -- 8. Standardize obs ------------------------------------------------
         dataset_name = os.path.splitext(os.path.basename(args.input))[0]
         has_dup_obs = not adata.obs_names.is_unique
-        adata.obs = standardize_obs(
+        adata.obs, obs_col_mapping = standardize_obs(
             adata.obs, dataset_name=dataset_name, make_unique=has_dup_obs
         )
+        if obs_col_mapping:
+            source_meta["obs_columns_standardized"] = obs_col_mapping
         if has_dup_obs:
             source_meta["obs_name_strategy"] = "make_unique"
 
@@ -312,12 +314,16 @@ def run(args: argparse.Namespace) -> int:
 
         # -- 10. Standardize obsm ----------------------------------------------
         if adata.obsm:
+            old_obsm_keys = set(adata.obsm.keys())
             new_obsm = standardize_obsm(dict(adata.obsm))
             # Clear and re-add
             for key in list(adata.obsm.keys()):
                 del adata.obsm[key]
             for key, val in new_obsm.items():
                 adata.obsm[key] = val
+            new_obsm_keys = set(new_obsm.keys())
+            source_meta["embeddings_preserved"] = sorted(new_obsm_keys)
+            source_meta["embeddings_dropped"] = sorted(old_obsm_keys - new_obsm_keys)
 
         # -- 11. Assign layers -------------------------------------------------
         source_layers = dict(adata.layers)

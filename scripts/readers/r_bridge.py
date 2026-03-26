@@ -176,8 +176,9 @@ def read_seurat(
     tmp_dir = tempfile.mkdtemp(prefix="stanobj_seurat_")
     try:
         cmd = [rscript, r_script, os.path.abspath(path), tmp_dir]
-        if decisions and "assay" in decisions:
-            cmd += ["--assay", decisions["assay"]]
+        assay = (decisions or {}).get("assay_selection") or (decisions or {}).get("assay")
+        if assay:
+            cmd += ["--assay", assay]
 
         proc = subprocess.run(
             cmd,
@@ -234,16 +235,24 @@ def read_seurat(
         }
         matrix_type_hint = slot_map.get(slot_used, "unknown")
 
-        source_meta = {
+        # Build source_meta, merging mtx_reader metadata as base
+        source_meta = dict(mtx_result.source_meta)
+        source_meta.update({
             "source_format": "seurat_rds",
             "reader_used": "r_bridge/seurat",
+            "matrix_orientation_before": "genes_x_cells",
+            "transposed": True,
+            "raw_counts_found": slot_used == "counts",
+            "feature_types_present": source_meta.get("feature_types_present", []),
+            "matrix_type_hint": matrix_type_hint,
+            "decompressed": False,
+            "warnings": source_meta.get("warnings", []),
             "assay": info.get("assay"),
             "slot_used": slot_used,
-            "matrix_type_hint": matrix_type_hint,
             "n_cells": info.get("n_cells"),
             "n_features": info.get("n_features"),
             "reductions_exported": reductions,
-        }
+        })
 
         return ReaderResult(adata=adata, source_meta=source_meta)
 
@@ -274,8 +283,9 @@ def read_sce(
     tmp_dir = tempfile.mkdtemp(prefix="stanobj_sce_")
     try:
         cmd = [rscript, r_script, os.path.abspath(path), tmp_dir]
-        if decisions and "assay" in decisions:
-            cmd += ["--assay", decisions["assay"]]
+        assay = (decisions or {}).get("assay_selection") or (decisions or {}).get("assay")
+        if assay:
+            cmd += ["--assay", assay]
 
         proc = subprocess.run(
             cmd,
@@ -326,18 +336,26 @@ def read_sce(
         }
         matrix_type_hint = hint_map.get(slot_hint, "unknown")
 
-        source_meta = {
+        # Build source_meta, merging mtx_reader metadata as base
+        source_meta = dict(mtx_result.source_meta)
+        source_meta.update({
             "source_format": "sce",
             "reader_used": "r_bridge/sce",
+            "matrix_orientation_before": "genes_x_cells",
+            "transposed": True,
+            "raw_counts_found": slot_hint == "counts",
+            "feature_types_present": source_meta.get("feature_types_present", []),
+            "matrix_type_hint": matrix_type_hint,
+            "decompressed": False,
+            "warnings": source_meta.get("warnings", []),
             "assay": info.get("assay"),
             "slot_hint": slot_hint,
-            "matrix_type_hint": matrix_type_hint,
             "n_cells": info.get("n_cells"),
             "n_features": info.get("n_features"),
             "reductions_exported": reductions,
             "colData_cols": info.get("colData_cols", []),
             "rowData_cols": info.get("rowData_cols", []),
-        }
+        })
 
         return ReaderResult(adata=adata, source_meta=source_meta)
 
