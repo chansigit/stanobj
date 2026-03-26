@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e94560"/>
+      <stop offset="100%" style="stop-color:#f5a623"/>
+    </linearGradient>
+    <linearGradient id="cell" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f3460"/>
+      <stop offset="100%" style="stop-color:#533483"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="16" y="16" width="480" height="480" rx="64" ry="64" fill="url(#bg)"/>
+
+  <!-- Stylized converging arrows representing format conversion -->
+  <!-- Left arrow (input formats) -->
+  <path d="M 100 180 L 180 256 L 100 332" stroke="url(#accent)" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+  <path d="M 60 210 L 160 256 L 60 302" stroke="url(#accent)" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+
+  <!-- Central h5ad hexagon -->
+  <polygon points="256,160 326,198 326,274 256,312 186,274 186,198"
+           fill="url(#cell)" stroke="#e94560" stroke-width="3" opacity="0.9"/>
+
+  <!-- Inner cell representation (dots in grid = expression matrix) -->
+  <g fill="#e94560" opacity="0.8">
+    <circle cx="226" cy="220" r="5"/>
+    <circle cx="256" cy="220" r="5"/>
+    <circle cx="286" cy="220" r="5"/>
+    <circle cx="226" cy="248" r="5"/>
+    <circle cx="256" cy="248" r="7" opacity="1"/>
+    <circle cx="286" cy="248" r="5"/>
+    <circle cx="226" cy="276" r="5"/>
+    <circle cx="256" cy="276" r="5"/>
+    <circle cx="286" cy="276" r="5"/>
+  </g>
+
+  <!-- Right arrow (output: canonical h5ad) -->
+  <path d="M 332 256 L 412 256" stroke="url(#accent)" stroke-width="16" fill="none" stroke-linecap="round"/>
+  <path d="M 392 236 L 420 256 L 392 276" stroke="url(#accent)" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Output check mark -->
+  <path d="M 430 240 L 445 260 L 470 225" stroke="#4ecca3" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Format labels (small) -->
+  <text x="70" y="170" fill="#8a8a9a" font-family="monospace" font-size="18" text-anchor="middle">.rds</text>
+  <text x="55" y="260" fill="#8a8a9a" font-family="monospace" font-size="18" text-anchor="middle">.mtx</text>
+  <text x="70" y="350" fill="#8a8a9a" font-family="monospace" font-size="18" text-anchor="middle">.csv</text>
+
+  <!-- h5ad label in center -->
+  <text x="256" y="345" fill="#e94560" font-family="monospace" font-size="20" font-weight="bold" text-anchor="middle">.h5ad</text>
+
+  <!-- Title -->
+  <text x="256" y="420" fill="#ffffff" font-family="sans-serif" font-size="52" font-weight="bold" text-anchor="middle" letter-spacing="4">stanobj</text>
+  <text x="256" y="455" fill="#8a8a9a" font-family="sans-serif" font-size="18" text-anchor="middle">standardize single-cell data</text>
+</svg>
