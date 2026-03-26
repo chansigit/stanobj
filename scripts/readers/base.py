@@ -46,20 +46,21 @@ class DecisionNeeded(Exception):
         options: List[Any],
         recommendation: Optional[str] = None,
         reason: str = "",
-        partial_state: Optional[dict] = None,
+        partial_state: Optional[str] = None,
     ) -> None:
         self.decision_type = decision_type
         self.context = context
         self.options = options
         self.recommendation = recommendation
         self.reason = reason
-        self.partial_state = partial_state or {}
+        self.partial_state = partial_state
         super().__init__(context)
 
     def to_json(self) -> str:
         """Return a structured JSON representation of this decision request."""
         return json.dumps(
             {
+                "status": "decision_needed",
                 "decision_type": self.decision_type,
                 "context": self.context,
                 "options": self.options,
