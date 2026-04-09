@@ -64,6 +64,16 @@ Input (any format)
 
 When the pipeline encounters ambiguity (e.g., unclear matrix orientation, multiple Seurat assays), it **pauses and asks** rather than guessing.
 
+## Installation
+
+### Claude Code plugin
+
+```
+/plugins add chansigit/stanobj
+```
+
+Once installed, ask Claude to "convert to h5ad" or "standardize single-cell data" and the skill activates automatically.
+
 ## Usage
 
 ### As a Claude Code Skill

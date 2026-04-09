@@ -1,0 +1,19 @@
+{
+  "name": "stanobj",
+  "displayName": "stanobj",
+  "description": "Convert heterogeneous single-cell formats into canonical h5ad files",
+  "version": "1.0.0",
+  "author": {
+    "name": "chansigit"
+  },
+  "homepage": "https://github.com/chansigit/stanobj",
+  "repository": "https://github.com/chansigit/stanobj",
+  "license": "MIT",
+  "keywords": [
+    "single-cell",
+    "scRNA-seq",
+    "h5ad",
+    "format-conversion",
+    "bioinformatics"
+  ]
+}

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stanobj"
+version = "1.0.0"
+description = "Convert heterogeneous single-cell formats into canonical h5ad files"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{name = "Sijie Chen"}]
+dependencies = [
+    "anndata>=0.8",
+    "scipy>=1.7",
+    "numpy>=1.22",
+    "pandas>=1.5",
+    "h5py>=3.7",
+]
+
+[project.optional-dependencies]
+loom = ["loompy>=3.0"]
+test = ["pytest>=7.0", "scanpy>=1.9"]
+
+[project.scripts]
+stanobj = "scripts.stanobj:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]
