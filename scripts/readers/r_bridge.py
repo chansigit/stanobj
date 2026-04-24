@@ -92,35 +92,73 @@ def _parse_r_json(stdout: str) -> dict:
 
 
 def _merge_metadata(adata, metadata_path: str) -> None:
-    """Merge metadata.csv exported by R into adata.obs."""
+    """Merge metadata.csv exported by R into adata.obs.
+
+    Alignment strategy, in order:
+      1. Full name-based: CSV index == adata.obs index as a set → reindex.
+      2. Partial name-based: non-empty intersection → assign only overlap.
+      3. Positional fallback: no name overlap but row counts match.
+    """
     if not os.path.isfile(metadata_path):
         return
+    # Read with string index so barcode comparisons always work.
     meta = pd.read_csv(metadata_path, index_col=0)
-    # Align on cell barcodes
-    if len(meta) == adata.n_obs:
-        # If row-order matches, just assign (indices may differ in formatting)
+    meta.index = meta.index.astype(str)
+
+    obs_index = adata.obs.index.astype(str)
+    common = obs_index.intersection(meta.index)
+
+    if len(common) == len(obs_index):
+        aligned = meta.reindex(obs_index)
+        for col in aligned.columns:
+            adata.obs[col] = aligned[col].values
+    elif len(common) > 0:
+        aligned = meta.loc[common]
+        for col in aligned.columns:
+            adata.obs.loc[common, col] = aligned[col].values
+    elif len(meta) == adata.n_obs:
+        # Fall back to positional only when names share nothing.
         for col in meta.columns:
             adata.obs[col] = meta[col].values
-    else:
-        # Attempt join
-        common = adata.obs.index.intersection(meta.index)
-        if len(common) > 0:
-            meta_aligned = meta.loc[common]
-            for col in meta_aligned.columns:
-                adata.obs.loc[common, col] = meta_aligned[col].values
 
 
 def _merge_reductions(adata, export_dir: str) -> list[str]:
-    """Merge reduction_*.csv files into adata.obsm. Return names merged."""
+    """Merge reduction_*.csv files into adata.obsm. Return names merged.
+
+    Rows are realigned to adata.obs_names by name when the CSV rownames
+    cover every cell. Partial coverage raises (silent NaN padding would
+    corrupt downstream plotting). When the CSV has no name overlap but
+    row counts match, fall back to positional assignment.
+    """
     merged = []
+    obs_index = adata.obs.index.astype(str)
     for fname in sorted(os.listdir(export_dir)):
-        if fname.startswith("reduction_") and fname.endswith(".csv"):
-            rname = fname[len("reduction_") : -len(".csv")]
-            rpath = os.path.join(export_dir, fname)
-            df = pd.read_csv(rpath, index_col=0)
-            key = f"X_{rname}"
-            adata.obsm[key] = df.values.astype(np.float32)
-            merged.append(rname)
+        if not (fname.startswith("reduction_") and fname.endswith(".csv")):
+            continue
+        rname = fname[len("reduction_") : -len(".csv")]
+        rpath = os.path.join(export_dir, fname)
+        df = pd.read_csv(rpath, index_col=0)
+        df.index = df.index.astype(str)
+        key = f"X_{rname}"
+
+        common = obs_index.intersection(df.index)
+        if len(common) == len(obs_index):
+            values = df.reindex(obs_index).values
+        elif len(common) > 0:
+            raise ValueError(
+                f"reduction_{rname}.csv only covers {len(common)}/"
+                f"{len(obs_index)} cells; cannot align embedding without "
+                f"losing data."
+            )
+        elif len(df) == len(obs_index):
+            values = df.values
+        else:
+            raise ValueError(
+                f"reduction_{rname}.csv has {len(df)} rows but adata has "
+                f"{len(obs_index)} cells, and no names overlap."
+            )
+        adata.obsm[key] = values.astype(np.float32)
+        merged.append(rname)
     return merged
 
 

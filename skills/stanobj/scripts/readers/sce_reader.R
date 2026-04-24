@@ -162,7 +162,12 @@ reductions_exported <- character(0)
 for (rname in red_dim_names) {
   emb <- tryCatch(as.data.frame(reducedDim(obj, rname)), error = function(e) NULL)
   if (!is.null(emb)) {
-    rownames(emb) <- colnames(mat)
+    # Only fabricate rownames when the embedding has none AND its row count
+    # matches the matrix; otherwise trust the existing rownames so the
+    # Python side can realign by cell name.
+    if (is.null(rownames(emb)) && nrow(emb) == ncol(mat)) {
+      rownames(emb) <- colnames(mat)
+    }
     fname <- paste0("reduction_", rname, ".csv")
     write.csv(emb, file.path(output_dir, fname), row.names = TRUE)
     reductions_exported <- c(reductions_exported, rname)
