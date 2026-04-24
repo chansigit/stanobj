@@ -162,31 +162,6 @@ def _merge_reductions(adata, export_dir: str) -> list[str]:
     return merged
 
 
-def _r_fallback_instructions(path: str, obj_type: str) -> str:
-    """Build a RuntimeError message with manual R conversion instructions."""
-    if obj_type == "seurat":
-        return (
-            f"Cannot read Seurat RDS file without R: {path}\n\n"
-            "To convert manually in R, run:\n"
-            "  library(Seurat)\n"
-            "  library(SeuratDisk)\n"
-            "  obj <- readRDS('" + path + "')\n"
-            "  SaveH5Seurat(obj, 'converted.h5seurat')\n"
-            "  Convert('converted.h5seurat', dest='h5ad')\n"
-            "\nThen pass the resulting .h5ad file to this pipeline.\n"
-        )
-    else:
-        return (
-            f"Cannot read SingleCellExperiment RDS file without R: {path}\n\n"
-            "To convert manually in R, run:\n"
-            "  library(SingleCellExperiment)\n"
-            "  library(zellkonverter)\n"
-            "  obj <- readRDS('" + path + "')\n"
-            "  writeH5AD(obj, 'converted.h5ad')\n"
-            "\nThen pass the resulting .h5ad file to this pipeline.\n"
-        )
-
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------

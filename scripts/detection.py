@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import os
-import tempfile
-from pathlib import Path
 from typing import Optional, Tuple
 
 import numpy as np
 from scipy import sparse
 
 try:
-    from .utils import is_integer_like, strip_compression_ext
+    from .utils import decompress_to_temp, is_integer_like, strip_compression_ext
 except ImportError:
-    from utils import is_integer_like, strip_compression_ext
+    from utils import decompress_to_temp, is_integer_like, strip_compression_ext
 
 # ---------------------------------------------------------------------------
 # Extension map (after stripping compression)
@@ -107,8 +105,6 @@ def _inspect_hdf5(path: str, is_compressed: bool) -> str:
     tmp_path: str | None = None
     try:
         if is_compressed:
-            from utils import decompress_to_temp
-
             tmp_path = decompress_to_temp(path)
             inspect_path = tmp_path
         else:
@@ -155,6 +151,11 @@ def compute_evidence(X) -> dict:
         Xd = np.asarray(X, dtype=float)
 
     n_cells, n_genes = Xd.shape
+
+    # Replace NaN/Inf with 0 for statistics; otherwise np.min/max/mean
+    # return NaN and corrupt both the classifier and the JSON report.
+    if not np.isfinite(Xd).all():
+        Xd = np.where(np.isfinite(Xd), Xd, 0.0)
 
     has_negatives = bool(np.any(Xd < 0))
     is_int = is_integer_like(Xd)

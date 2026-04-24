@@ -16,7 +16,6 @@ import argparse
 import json
 import os
 import sys
-import warnings as _warnings
 
 # ---------------------------------------------------------------------------
 # Make sibling imports work when invoked as a script
@@ -27,9 +26,6 @@ if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
-
-import numpy as np
-from scipy import sparse
 
 from scripts.utils import (
     cleanup_temp,
@@ -298,7 +294,11 @@ def run(args: argparse.Namespace) -> int:
                     source_meta["modality_filter"] = "keep_all"
 
         # -- 8. Standardize obs ------------------------------------------------
-        dataset_name = os.path.splitext(os.path.basename(args.input))[0]
+        # Strip compression suffix first so "data.tar.gz" becomes "data",
+        # not "data.tar".
+        _basename = os.path.basename(args.input)
+        _stripped, _ = strip_compression_ext(_basename)
+        dataset_name = os.path.splitext(_stripped)[0]
         has_dup_obs = not adata.obs_names.is_unique
         adata.obs, obs_col_mapping = standardize_obs(
             adata.obs, dataset_name=dataset_name, make_unique=has_dup_obs
@@ -328,7 +328,9 @@ def run(args: argparse.Namespace) -> int:
             source_meta["embeddings_dropped"] = sorted(old_obsm_keys - new_obsm_keys)
 
         # -- 11. Assign layers -------------------------------------------------
-        source_layers = dict(adata.layers)
+        # Copy layer data explicitly — on some AnnData versions iterating
+        # adata.layers yields views that may become invalid after clear().
+        source_layers = {k: v.copy() for k, v in adata.layers.items()}
         adata.layers.clear()
         adata = assign_layers(adata, matrix_type, source_layers)
 

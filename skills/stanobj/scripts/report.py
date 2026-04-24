@@ -226,7 +226,11 @@ def generate_audit_log(
 
     # --- Validation ---
     lines.append("--- Validation ---")
-    lines.append("All checks passed.")
+    if warnings:
+        n = len(warnings)
+        lines.append(f"Passed with {n} warning{'s' if n != 1 else ''}.")
+    else:
+        lines.append("All checks passed.")
     lines.append("")
     lines.append(
         f"Shape: {format_number(n_cells)} cells x {format_number(n_genes)} genes"

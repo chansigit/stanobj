@@ -389,7 +389,12 @@ class TestGenerateAuditLog:
             warnings=sample_warnings,
         )
         assert "--- Validation ---" in log
-        assert "All checks passed." in log
+        # When warnings are present, the summary reflects that;
+        # an empty-warning run gets the original "All checks passed." line.
+        if sample_warnings:
+            assert "Passed with" in log
+        else:
+            assert "All checks passed." in log
 
     def test_contains_shape(
         self, sample_source_meta, sample_matrix_classification,
