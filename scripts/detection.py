@@ -71,13 +71,20 @@ def detect_format(path: str) -> str:
     """
     path = str(path)
 
-    # --- Directory: check for matrix.mtx* ---
+    # --- Directory: check for matrix.mtx[.gz] (bare or GEO-prefixed) ---
+    # CellRanger emits bare names (matrix.mtx, matrix.mtx.gz). GEO
+    # multi-library deposits prefix each file with the sample accession
+    # and/or library label (e.g. "GSM123456_exp1_matrix.mtx.gz"). Accept
+    # either layout by matching any file whose name ends in ``matrix.mtx``
+    # or ``matrix.mtx.gz``.
     if os.path.isdir(path):
         for entry in os.listdir(path):
-            if entry.startswith("matrix.mtx"):
+            stripped = entry[:-3] if entry.endswith(".gz") else entry
+            if stripped.endswith("matrix.mtx"):
                 return "mtx"
         raise ValueError(
-            f"Cannot detect format: directory '{path}' does not contain matrix.mtx*"
+            f"Cannot detect format: directory '{path}' does not contain "
+            f"*matrix.mtx[.gz]"
         )
 
     # --- File: strip compression, then map extension ---

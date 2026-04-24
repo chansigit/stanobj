@@ -88,6 +88,23 @@ class TestDetectFormat:
     def test_mtx_dir(self, tiny_mtx_dir):
         assert detect_format(tiny_mtx_dir) == "mtx"
 
+    def test_mtx_dir_geo_prefixed(self, tmp_dir):
+        """GEO multi-library dumps prefix each file with <GSM>_<library>_
+        (e.g. GSM123456_exp1_matrix.mtx.gz). Detection must accept this."""
+        d = os.path.join(tmp_dir, "GSM123456")
+        os.makedirs(d)
+        # File presence alone drives detection; contents are irrelevant.
+        open(os.path.join(d, "GSM123456_exp1_matrix.mtx.gz"), "wb").close()
+        assert detect_format(d) == "mtx"
+
+    def test_mtx_dir_no_matrix_raises(self, tmp_dir):
+        """Dir with unrelated files (e.g. hash-tag CSV companions) is not mtx."""
+        d = os.path.join(tmp_dir, "GSM_tags_only")
+        os.makedirs(d)
+        open(os.path.join(d, "GSM123456_hash_tagmtx.csv.gz"), "wb").close()
+        with pytest.raises(ValueError, match="matrix.mtx"):
+            detect_format(d)
+
     def test_mtx_file(self, tmp_dir):
         path = os.path.join(tmp_dir, "matrix.mtx")
         open(path, "w").close()

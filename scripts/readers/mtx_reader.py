@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import os
 from typing import Optional
 
@@ -17,12 +18,43 @@ except ImportError:
     from base import ReaderResult
 
 
-def _find_file(directory: str, candidates: list[str]) -> Optional[str]:
-    """Return the first existing file from *candidates* inside *directory*."""
+def _find_file(
+    directory: str,
+    candidates: list[str],
+    glob_patterns: Optional[list[str]] = None,
+) -> Optional[str]:
+    """Return the first existing file from *candidates* inside *directory*.
+
+    If none of the exact *candidates* match and *glob_patterns* is provided,
+    fall back to glob-based matching (e.g. to accept GEO-style prefixed
+    names such as ``GSM123456_exp1_matrix.mtx.gz``). Bare CellRanger
+    filenames still take precedence; glob fallback is only consulted when
+    they are absent.
+
+    Raises ``ValueError`` if the glob fallback matches **more than one**
+    file — ambiguous names cannot be disambiguated here; callers should
+    place each library in its own subdirectory.
+    """
     for name in candidates:
         path = os.path.join(directory, name)
         if os.path.isfile(path):
             return path
+    if glob_patterns:
+        seen: set[str] = set()
+        matches: list[str] = []
+        for pat in glob_patterns:
+            for m in glob.glob(os.path.join(directory, pat)):
+                if m not in seen and os.path.isfile(m):
+                    seen.add(m)
+                    matches.append(m)
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            raise ValueError(
+                f"Ambiguous match for {glob_patterns!r} in {directory!r}: "
+                f"multiple candidates {sorted(matches)!r}. Put each library "
+                f"in its own subdirectory to disambiguate."
+            )
     return None
 
 
@@ -49,11 +81,25 @@ def read_mtx(path: str, decisions: Optional[dict] = None) -> ReaderResult:
         directory = os.path.abspath(path)
 
     # 2. Locate required files ----------------------------------------------
-    matrix_path = _find_file(directory, ["matrix.mtx.gz", "matrix.mtx"])
-    barcodes_path = _find_file(directory, ["barcodes.tsv.gz", "barcodes.tsv"])
+    #    Try bare CellRanger names first, then fall back to GEO-style
+    #    prefixed variants (``GSM123_exp1_matrix.mtx.gz`` etc.).
+    matrix_path = _find_file(
+        directory,
+        ["matrix.mtx.gz", "matrix.mtx"],
+        glob_patterns=["*matrix.mtx.gz", "*matrix.mtx"],
+    )
+    barcodes_path = _find_file(
+        directory,
+        ["barcodes.tsv.gz", "barcodes.tsv"],
+        glob_patterns=["*barcodes.tsv.gz", "*barcodes.tsv"],
+    )
     features_path = _find_file(
         directory,
         ["features.tsv.gz", "features.tsv", "genes.tsv.gz", "genes.tsv"],
+        glob_patterns=[
+            "*features.tsv.gz", "*features.tsv",
+            "*genes.tsv.gz", "*genes.tsv",
+        ],
     )
 
     # 3. Validate all files exist -------------------------------------------

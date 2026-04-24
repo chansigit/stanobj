@@ -85,6 +85,80 @@ class TestTwoColumnFeatures:
 
 
 # ---------------------------------------------------------------------------
+# GEO-style prefixed triplet (multi-library deposits)
+# ---------------------------------------------------------------------------
+
+
+class TestGEOPrefixedTriplet:
+    """GEO deposits often prefix each file with <GSM>_<library>_ ; e.g.
+    GSM123456_exp1_matrix.mtx.gz. stanobj must read such directories as-is,
+    without relying on external symlink workarounds.
+    """
+
+    def _write_triplet(self, mtx_dir, prefix, counts, cell_ids, gene_names):
+        os.makedirs(mtx_dir, exist_ok=True)
+        mat = counts.T.tocoo()
+        mmwrite(os.path.join(mtx_dir, f"{prefix}matrix.mtx"), mat)
+        with open(os.path.join(mtx_dir, f"{prefix}barcodes.tsv"), "w") as f:
+            for bc in cell_ids:
+                f.write(bc + "\n")
+        with open(os.path.join(mtx_dir, f"{prefix}features.tsv"), "w") as f:
+            for i, sym in enumerate(gene_names):
+                f.write(f"ENSG{i:011d}\t{sym}\tGene Expression\n")
+
+    def test_geo_prefixed_triplet(self, tiny_counts, tiny_cell_ids,
+                                  tiny_gene_names, tmp_dir):
+        mtx_dir = os.path.join(tmp_dir, "GSM123456")
+        self._write_triplet(
+            mtx_dir, "GSM123456_exp1_spleen_l1_",
+            tiny_counts, tiny_cell_ids, tiny_gene_names,
+        )
+        result = read_mtx(mtx_dir)
+        assert result.adata.shape == (10, 20)
+        assert result.source_meta["source_format"] == "mtx"
+        # Non-GEO-prefix bare names should still take precedence when
+        # both coexist (guardrail against glob fallback stealing
+        # priority); that is the subject of the next test.
+
+    def test_bare_names_precedence_over_prefixed(self, tiny_counts,
+                                                 tiny_cell_ids, tiny_gene_names,
+                                                 tmp_dir):
+        """If both bare CellRanger names and GEO-prefixed names coexist,
+        bare names win — they are the canonical form."""
+        mtx_dir = os.path.join(tmp_dir, "mixed")
+        os.makedirs(mtx_dir)
+        # Bare names — correct content (our tiny fixture).
+        self._write_triplet(
+            mtx_dir, "",  # no prefix
+            tiny_counts, tiny_cell_ids, tiny_gene_names,
+        )
+        # Distractors with a different shape under a GEO prefix — if the
+        # reader ever picks these, read_mtx will raise on shape mismatch.
+        distractor = sparse.random(3, 2, density=1.0, format="coo",
+                                   random_state=0)
+        mmwrite(os.path.join(mtx_dir, "GSM_other_matrix.mtx"), distractor)
+        result = read_mtx(mtx_dir)
+        assert result.adata.shape == (10, 20)  # bare names, not distractor
+
+    def test_geo_prefixed_ambiguous_raises(self, tiny_counts, tiny_cell_ids,
+                                           tiny_gene_names, tmp_dir):
+        """Two competing prefixed libraries in one directory → ambiguous."""
+        mtx_dir = os.path.join(tmp_dir, "ambiguous")
+        os.makedirs(mtx_dir)
+        mat = tiny_counts.T.tocoo()
+        mmwrite(os.path.join(mtx_dir, "libA_matrix.mtx"), mat)
+        mmwrite(os.path.join(mtx_dir, "libB_matrix.mtx"), mat)
+        with open(os.path.join(mtx_dir, "libA_barcodes.tsv"), "w") as f:
+            for bc in tiny_cell_ids:
+                f.write(bc + "\n")
+        with open(os.path.join(mtx_dir, "libA_features.tsv"), "w") as f:
+            for i, sym in enumerate(tiny_gene_names):
+                f.write(f"ENSG{i:011d}\t{sym}\tGene Expression\n")
+        with pytest.raises(ValueError, match="Ambiguous"):
+            read_mtx(mtx_dir)
+
+
+# ---------------------------------------------------------------------------
 # genes.tsv fallback
 # ---------------------------------------------------------------------------
 
