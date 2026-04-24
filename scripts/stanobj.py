@@ -124,11 +124,13 @@ def resolve_input(path: str) -> tuple[str, bool, list[str]]:
     if is_archive(path):
         extracted_dir = extract_archive(path)
         temp_paths.append(extracted_dir)
-        # If single subdirectory, descend into it
+        # If single subdirectory, descend into it — but only if it's a
+        # real directory, not a symlink (defense-in-depth against archive
+        # entries that escape the extraction root).
         entries = os.listdir(extracted_dir)
         if len(entries) == 1:
             sub = os.path.join(extracted_dir, entries[0])
-            if os.path.isdir(sub):
+            if os.path.isdir(sub) and not os.path.islink(sub):
                 return sub, False, temp_paths
         return extracted_dir, False, temp_paths
 

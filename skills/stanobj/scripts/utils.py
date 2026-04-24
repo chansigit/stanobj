@@ -167,16 +167,49 @@ def extract_archive(path: str | Path, dest: Optional[str | Path] = None) -> str:
     dest = str(dest)
 
     lower = path.lower()
+    dest_real = os.path.realpath(dest)
     if lower.endswith((".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar")):
         with tarfile.open(path) as tf:
-            tf.extractall(dest)
+            # filter="data" (Python 3.12+) rejects absolute paths, ".."
+            # traversal, device/special files, and external symlinks.
+            try:
+                tf.extractall(dest, filter="data")
+            except TypeError:
+                # Python < 3.12: manually validate each member.
+                _safe_tar_extractall(tf, dest_real)
     elif lower.endswith(".zip"):
         with zipfile.ZipFile(path) as zf:
+            for name in zf.namelist():
+                target = os.path.realpath(os.path.join(dest, name))
+                if not (target == dest_real or target.startswith(dest_real + os.sep)):
+                    raise ValueError(
+                        f"Unsafe zip entry escapes extraction dir: {name!r}"
+                    )
             zf.extractall(dest)
     else:
         raise ValueError(f"Unsupported archive format: {path}")
 
     return dest
+
+
+def _safe_tar_extractall(tf: "tarfile.TarFile", dest_real: str) -> None:
+    """Fallback for pre-3.12 tarfile: reject entries that escape *dest_real*."""
+    for member in tf.getmembers():
+        target = os.path.realpath(os.path.join(dest_real, member.name))
+        if not (target == dest_real or target.startswith(dest_real + os.sep)):
+            raise ValueError(
+                f"Unsafe tar entry escapes extraction dir: {member.name!r}"
+            )
+        if member.issym() or member.islnk():
+            link_target = os.path.realpath(
+                os.path.join(os.path.dirname(target), member.linkname)
+            )
+            if not link_target.startswith(dest_real + os.sep):
+                raise ValueError(
+                    f"Unsafe tar link escapes extraction dir: "
+                    f"{member.name!r} -> {member.linkname!r}"
+                )
+    tf.extractall(dest_real)
 
 
 def decompress_to_temp(path: str | Path) -> str:
