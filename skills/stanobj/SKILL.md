@@ -9,6 +9,9 @@ description: >
   into canonical h5ad. Do NOT use for reading/inspecting existing h5ad files
   (that is scrna-reader), gene ID conversion (that is stangene), or biological
   analysis (PCA, clustering, etc).
+  Position in stan* family chain — Upstream: standl (consumes standl's raw/ +
+  manifest.json + design.yaml). Downstream: stangene (produces canonical h5ad
+  for gene identifier harmonization).
 version: 1.0.0
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
