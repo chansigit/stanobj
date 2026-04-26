@@ -54,7 +54,7 @@ def generate_report_json(
         Pretty-printed JSON string.
     """
     report = {
-        "stanobj_version": "1.0.0",
+        "stanobj_version": "1.1.0",
         "source_path": source_path,
         "source_format": source_format,
         "decompressed": source_meta.get("decompressed", False),

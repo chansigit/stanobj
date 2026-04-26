@@ -83,12 +83,130 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         help="Repeatable key=value decision pairs",
     )
+    parser.add_argument(
+        "--design-yaml",
+        dest="design_yaml",
+        default=None,
+        help=(
+            "Path to a standl-produced design.yaml. When given, "
+            "sample-level metadata (organism + samples[i].extra) is "
+            "broadcast into adata.obs as new columns (one value per cell). "
+            "Useful for downstream ontology mapping where obs would "
+            "otherwise lack tissue / disease / species columns."
+        ),
+    )
+    parser.add_argument(
+        "--sample-id",
+        dest="sample_id",
+        default=None,
+        help=(
+            "When --design-yaml has multiple samples, pick the one with this "
+            "sample_id. Required iff design.yaml has > 1 sample."
+        ),
+    )
     return parser
 
 
 # ---------------------------------------------------------------------------
 # Utility functions
 # ---------------------------------------------------------------------------
+
+
+def load_design_sample_metadata(
+    design_yaml_path: str,
+    sample_id: str | None = None,
+) -> tuple[dict, str]:
+    """Read a standl ``design.yaml`` and return the sample-level metadata
+    dict to broadcast across cells, plus the resolved sample_id.
+
+    The returned dict merges:
+      - the top-level ``organism``  → ``species``
+      - ``samples[i].accession``    → ``sample_id``
+      - ``samples[i].organism``     → preserved (overrides top-level if set)
+      - all string-valued keys under ``samples[i].extra``
+
+    Selection rule:
+      - If ``sample_id`` is given, pick that sample.
+      - Else if there is exactly one sample, use it.
+      - Else raise ``ValueError`` listing available sample_ids.
+
+    Empty / non-string values under ``extra`` are dropped (keeps obs
+    schema clean). The caller is responsible for downstream
+    ontology-mapping decisions on multi-value strings (e.g.
+    ``"Epithelia, Stroma, Immune"``); we broadcast them verbatim.
+    """
+    try:
+        import yaml
+    except ImportError as exc:
+        raise ImportError(
+            "PyYAML required to read design.yaml; "
+            "pip install pyyaml"
+        ) from exc
+
+    with open(design_yaml_path) as fh:
+        doc = yaml.safe_load(fh) or {}
+
+    samples = doc.get("samples") or []
+    if not isinstance(samples, list) or not samples:
+        raise ValueError(
+            f"{design_yaml_path}: no 'samples' list found"
+        )
+
+    if sample_id is not None:
+        chosen = next(
+            (s for s in samples if s.get("sample_id") == sample_id),
+            None,
+        )
+        if chosen is None:
+            ids = [s.get("sample_id") for s in samples]
+            raise ValueError(
+                f"sample_id={sample_id!r} not in design.yaml; "
+                f"available: {ids}"
+            )
+    elif len(samples) == 1:
+        chosen = samples[0]
+        sample_id = chosen.get("sample_id")
+    else:
+        ids = [s.get("sample_id") for s in samples]
+        raise ValueError(
+            f"design.yaml has {len(samples)} samples — pass --sample-id; "
+            f"available: {ids}"
+        )
+
+    metadata: dict = {}
+    top_org = doc.get("organism")
+    if isinstance(top_org, str) and top_org.strip():
+        metadata["species"] = top_org
+    if chosen.get("organism"):  # sample-level override wins
+        metadata["species"] = chosen["organism"]
+    if chosen.get("assay"):
+        metadata.setdefault("assay", chosen["assay"])
+    if chosen.get("accession"):
+        metadata["sample_id"] = chosen["accession"]
+    extra = chosen.get("extra") or {}
+    if isinstance(extra, dict):
+        for k, v in extra.items():
+            if isinstance(v, str) and v.strip():
+                metadata[k] = v
+    return metadata, sample_id or chosen.get("sample_id") or "<unknown>"
+
+
+def broadcast_design_metadata(adata, metadata: dict) -> dict:
+    """Add design-yaml metadata as broadcast obs columns.
+
+    Returns a provenance dict listing what was added vs already present.
+    Existing obs columns are NEVER overwritten — if a column already
+    exists, its broadcast is skipped and noted in ``existing``.
+    """
+    added: list[str] = []
+    existing: list[str] = []
+    for k, v in metadata.items():
+        if k in adata.obs.columns:
+            existing.append(k)
+            continue
+        adata.obs[k] = [v] * adata.n_obs
+        added.append(k)
+    return {"added": sorted(added), "skipped_existing": sorted(existing)}
 
 
 def parse_decisions(decision_args: list[str]) -> dict:
@@ -307,6 +425,39 @@ def run(args: argparse.Namespace) -> int:
             source_meta["obs_columns_standardized"] = obs_col_mapping
         if has_dup_obs:
             source_meta["obs_name_strategy"] = "make_unique"
+
+        # -- 8b. Broadcast sample metadata from design.yaml ---------------
+        # Optional. When the upstream tool (e.g. eca-curation's
+        # /eca-buildobj) supplies a standl-produced design.yaml, copy
+        # sample-level metadata into adata.obs so downstream ontology
+        # mapping has tissue / disease / species columns to look at.
+        if getattr(args, "design_yaml", None):
+            try:
+                meta, resolved_sid = load_design_sample_metadata(
+                    args.design_yaml,
+                    sample_id=getattr(args, "sample_id", None),
+                )
+            except (ValueError, ImportError, FileNotFoundError) as exc:
+                # Surface as a fatal error — the caller asked for a
+                # design.yaml, so silently skipping would hide intent.
+                error_json = json.dumps(
+                    {"status": "error",
+                     "message": f"design.yaml broadcast failed: {exc}"},
+                    indent=2,
+                )
+                print(error_json, file=sys.stderr)
+                return 1
+            prov = broadcast_design_metadata(adata, meta)
+            source_meta["design_broadcast"] = {
+                "design_yaml": args.design_yaml,
+                "sample_id": resolved_sid,
+                **prov,
+            }
+            if prov["skipped_existing"]:
+                all_warnings.append(
+                    "design.yaml broadcast skipped existing obs columns: "
+                    + ", ".join(prov["skipped_existing"])
+                )
 
         # -- 9. Standardize var ------------------------------------------------
         adata.var, rename_map = standardize_var(adata.var, return_rename_map=True)

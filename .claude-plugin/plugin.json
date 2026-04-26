@@ -2,7 +2,7 @@
   "name": "stanobj",
   "displayName": "stanobj",
   "description": "Convert heterogeneous single-cell formats into canonical h5ad files",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "chansigit"
   },
